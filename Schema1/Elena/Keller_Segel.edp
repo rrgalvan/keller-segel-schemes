@@ -1,39 +1,33 @@
 load "iovtk" //VTK è costituito da una libreria C ++ open source per la visualizzazione di diversi tipi di dati 
 //Pre-processing
 //1.1 Mesh
-//real R=1;
 int n=100; //numero iterazioni
-//border gamma0(t=0,2*pi){x=R*cos(t);y=R*sin(t);}
-//mesh Th = buildmesh(gamma0(n));
 mesh Th=square(n,n,[4*x-2,4*y-2]);
-//plot(Th, wait=1);
+
 //1.2 Fespace and functions(FEM)
 fespace Vh(Th,P1);
-//Vh u, v, ut, vt;
-//Vh uold, vold;
 Vh u,ut,uold;
 Vh v,vt,vold;
 macro gradient(u)[dx(u),dy(u)] //definisco la funzione gradiente u
   ;//para emacs
+
 //1.3 DAta definition
+real t=0;
+int N=200;
+real dt=1e-4;
 real k3=0.1;//coeff di diffusione se a=0 hyperbolic
 real k4=1;
 real k2=1;
 real k1=0.2;//coeff termin non linear
-real t=0, T=1;
-int N=50;
-real dt=T/N;
-//real dt=1e-4;
-func u0=3.15*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+func u0=1.15*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
 //func u0= 24*(((x^2-4)^2+(y^2-4)^2 + 1)-0.05*((x^2-4)^4+(y^2-4)^4));
 func v0=0.55*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
-//func bolla=(R/2-x^2-y^2); // Bolla (burbuja, bubble?) function
-//func u0=bolla*(x^2+y^2<R/2); // u0=bolla if x^2+y^2<R/2, u0=0 if  x^2+y^2>=R/2
-//func v0=bolla*(x^2+y^2<R/2); // v0=bolla if x^2+y^2<R/2, v0=0 if  x^2+y^2>=R/2
-//uold = u0;
-//vold =v0;
-real[int] xx(N+1), yy(N+1);
+
 //2.Processing
+uold=u0;
+vold=v0;
+plot(vold,uold,value=1,wait=1);
+
 problem kellerSegel([u,v],[ut,vt])=
   int2d(Th)( u*ut+dt*gradient(u)'*gradient(ut))
   +int2d(Th)(v*vt+k2*dt*gradient(v)'*gradient(vt))
@@ -55,16 +49,20 @@ problem kellerSegelU(u,ut)=
   -int2d(Th)(uold*ut+k1*dt*uold*gradient(vold)'*gradient(ut)
 	     );
 //Time interation
+real[int] xx(N+1), yy(N+1);
 xx[0]=0;
+yy[0]=abs(uold[].max);
+
 uold=u0;
 vold=v0;
 plot(uold,wait=1,dim=3,value=1);
-//yy[0]=0.5*int2d(Th)(u*u);
- yy[0]=abs(uold[].max);
- cout<< "min(uold) = " <<uold[].min <<endl;
+
+//cout<< "min(uold) = " <<uold[].min <<endl;
+
 real s0=clock();
 int k=0;
 savevtk("vtk/kS-" + k + ".vtk", Th, uold,vold, dataname="u v");
+
 for( k=1; k<=N; ++k ){
   t=t+dt;
   xx[k] = k*dt;
@@ -72,26 +70,25 @@ for( k=1; k<=N; ++k ){
   kellerSegelV;
   vold= v;
   uold= u;
-  // yy[k]=0.5*int2d(Th)(u*u);
   yy[k]=abs(u[].max);
+  plot(u,dim=3,wait=1,fill=true, value=1);
  
-  //plot(u,dim=3,wait=1,fill=true, value=1);
-  //cout<< "iter " <<k<<"energy:"<<yy[k]<<endl;
-  cout<< "max(u) = " <<u[].max <<endl;
+ cout<< "max(u) = " <<u[].max <<endl;
   savevtk("vtk/kS-" + k + ".vtk", Th, u,v, dataname="u v");
  }
 
-  if(0)
-  {
-    ofstream file("plot.txt");
-    for (int i=0; i<=N; i++)
-      {
+if(1)
+{
+  ofstream file("plot.txt");
+  for (int i=0; i<=N; i++)
+    {
 	file << xx[i]<< " " << yy[i] << endl;
-      }
-  }
+    }
+}
   real s1=clock();
   cout << "tempo trascorso " << s1-s0 <<endl;
-  plot(u,v,dim=3,fill=true, value=1);
+
+plot(u,v,dim=3,fill=true,wait=1,value=1);
   
 
   
