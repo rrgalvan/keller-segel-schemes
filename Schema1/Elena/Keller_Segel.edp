@@ -49,9 +49,10 @@ problem kellerSegelU(u,ut)=
   -int2d(Th)(uold*ut+k1*dt*uold*gradient(vold)'*gradient(ut)
 	     );
 //Time interation
-real[int] xx(N+1), yy(N+1);
-xx[0]=0;
-yy[0]=abs(uold[].max);
+real[int] tt(N+1), maxU(N+1), maxV(N+1); 
+tt[0]=0;
+maxU[0]=abs(uold[].max);
+maxV[0]=abs(vold[].max);
 
 uold=u0;
 vold=v0;
@@ -66,28 +67,35 @@ savevtk("vtk/kS-" + k + ".vtk", Th, uold,vold, dataname="u v");
 for( k=1; k<=N; ++k ){
   t=t+dt;
   cout << "Iter " << k << "(t=" << t << ")" << endl;
-  xx[k] = k*dt; // t
-  KellerSegel;
-  // kellerSegelU;
-  // kellerSegelV;
+  tt[k] = k*dt; // t
+  // kellerSegel;
+  kellerSegelU;
+  kellerSegelV;
   vold= v;
   uold= u;
-  yy[k]=abs(u[].max);
+  maxU[k]=abs(u[].max);
+  maxV[k]=abs(v[].max);
   plot(u,dim=3,wait=1,fill=true, value=1);
 
- cout<< "max(u) = " <<u[].max <<endl;
+  cout<< "max(u) = " <<u[].max <<endl;
+  cout<< "max(v) = " <<v[].max <<endl;
   savevtk("vtk/kS-" + k + ".vtk", Th, u,v, dataname="u v");
  }
 
 if(1)
 {
-  ofstream file("plot.txt");
+  ofstream fileU("max_u.txt");
   for (int i=0; i<=N; i++)
     {
-	file << xx[i]<< " " << yy[i] << endl;
+	fileU << tt[i]<< " " << maxU[i] << endl;
+    }
+  ofstream fileV("max_v.txt");
+  for (int i=0; i<=N; i++)
+    {
+	fileV << tt[i]<< " " << maxV[i] << endl;
     }
 }
-  real s1=clock();
-  cout << "tempo trascorso " << s1-s0 <<endl;
+real s1=clock();
+cout << "tempo trascorso " << s1-s0 <<endl;
 
 plot(u,v,dim=3,fill=true,wait=1,value=1);

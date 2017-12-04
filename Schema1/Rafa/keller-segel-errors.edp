@@ -44,10 +44,10 @@ func real dyVExact(real x, real y, real t) { return -2*y*exp(t)*(x^2+y^2<1); }
 
 // Right hand side, fu, such that u_t -Delta u + div(u grad(v))  = fu
 func real fu(real x, real y, real t) {
-  real xx = x*x, yy=y*y;
+  real xx = x*x, yy=y*y, et=exp(t);
   if(xx*yy<1) {
-    real dtMinusDelta = exp(t)*(5-xx-yy);
-    real divuGradv = 4*exp(2*t) * (2*xx + 2*yy - 1);
+    real dtMinusDelta = et*(5-xx-yy);
+    real divuGradv = 4*et*et * (2*xx + 2*yy - 1);
     return (dtMinusDelta + divuGradv);
   }
   else return 0;
@@ -106,9 +106,9 @@ for (int iter=1; iter<=niter; iter++) {
   t = iter*k;
   cout << "Iter " << iter << ", t=" << t << endl;
 
-   KellerSegel; // Solve system
-  // KellerSegelU; // Solve system
-  // KellerSegelV; // Solve system
+  // KellerSegel; // Solve system
+  KellerSegelU; // Solve system
+  KellerSegelV; // Solve system
 
   u0 = u;  // For next iteration
   v0 = v;  // For next iteration
@@ -118,10 +118,8 @@ for (int iter=1; iter<=niter; iter++) {
   plot(u, value=1, fill=1, dim=3, cmm="iter " + iter);
 
   // Compute errors
-  Vh uEx = uExact(x,y,t);
   uL2error2 = int2d(Th)( (u-uExact(x,y,t))^2 );
   uH1error2 = int2d(Th)( (dx(u)-dxUExact(x,y,t))^2 + (dy(u)-dyUExact(x,y,t))^2 );
-  Vh vEx = vExact(x,y,t);
   vL2error2 = int2d(Th)( (v-vExact(x,y,t))^2 );
   vH1error2 = int2d(Th)( (dx(v)-dxVExact(x,y,t))^2 + (dy(v)-dyVExact(x,y,t))^2 );
 
@@ -136,6 +134,6 @@ for (int iter=1; iter<=niter; iter++) {
  } // End of time loop
 
 cout << endl << "Data: k=" << k << " (niter=" << niter
-  << "), h=" << 4./n << " (n=" << n << ")" << endl;
+  << "), h=" << Th.hmax << " (n=" << n << ")" << endl;
 cout << "Global u errors L2(L2)/L2(H1): " << sqrt(uL2L2error2) << "/" << sqrt(uL2H1error2) << endl;
 cout << "Global v errors L2(L2)/L2(H1): " << sqrt(vL2L2error2) << "/" << sqrt(vL2H1error2) << endl;
