@@ -86,7 +86,9 @@ for (int k=1; k<=N; k++){
 }
 
 { // file for gnuplot
+
 ofstream file("max-v-schm1.txt");
+file.precision(10);
 for (int i=0;i<=N;i++)
 {
 	file << xx[i] << " " << yyv[i] << endl;
@@ -95,6 +97,7 @@ for (int i=0;i<=N;i++)
  
 { // file for gnuplot
 ofstream file("max-u-schm1.txt");
+file.precision(10);
 for (int i=0;i<=N;i++)
 {
 	file << xx[i] << " " << yyu[i] << endl;
