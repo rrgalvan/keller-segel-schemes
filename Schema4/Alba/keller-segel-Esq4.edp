@@ -1,0 +1,93 @@
+// Mesh and finite element spaces
+int n = 200;
+mesh Th = square(n, n, [4*x-2, 4*y-2]);
+
+fespace Vh(Th,P1);
+Vh u, u0, bu; // Solution at t_{n+1}, t_n, test function.
+Vh v, v0, bv; // Solution at t_{n+1}, t_n, test function.
+
+macro grad(u) [ dx(u), dy(u) ] // End of Macro
+// Time parameters
+real t = 0;
+int N=50;
+real dt=1.e-4;
+
+// Maximum plot vectors
+real[int] xx(N+1), yyu(N+1),yyv(N+1); 
+xx[0]=0;
+// Keller-Segel data
+
+real k1=0.2;
+real k2=1;
+real k3=0.1;
+real k4=1;
+
+real integral;
+
+func initialU = 1.15*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+func initialU2 = 24*(((x^2-4)^2+(y^2-4)^2 + 1)-0.05*((x^2-4)^4+(y^2-4)^4));
+func initialV = 0.55*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+
+
+u0 = initialU;
+v0 = initialV;
+yyu[0]=abs(u0[].max);
+yyv[0]=abs(v0[].max);
+
+integral=int2d(Th)(u0);
+
+cout <<"La integral del dato inicial es "<<integral<< "y 4pi es  " << 4*pi << endl;
+
+// Variational problem
+
+problem KellerSegel( [u,v], [bu,bv] ) = 
+//bilinear form 
+  int2d(Th)( u*bu/dt + grad(u)'*grad(bu) )
+  + int2d(Th)( v*bv/dt + k2*grad(v)'*grad(bv) )
+  - int2d(Th)( k1*u0*grad(v)'*grad(bu) )
+  - int2d(Th)( k4*u*bv - k3*v*bv )
+  //Linear form
+  - int2d(Th)( u0*bu/dt )
+  - int2d(Th)( v0*bv/dt );
+
+
+  for (int k=1; k<=N; k++){
+  	t=t+dt; 
+    KellerSegel; // Solve first equation!
+    u0 = u;  // For next iteration
+    v0 = v;  // For next iteration
+  
+
+    plot(u, value=1, fill=1, dim=3);
+
+    cout << "max(u)"<< abs(u[].max)<< endl;
+    xx[k]=dt*k;
+    yyu[k]=abs(u0[].max);
+  
+    cout << "max(v)"<< abs(v[].max)<< endl;
+    yyv[k]=abs(v0[].max);
+  
+  // savevtk ("VTK-K-S1/K-S"+k+".vtk",Th,u,v,dataname ="u v");  
+  
+  }
+
+  { // file for gnuplot
+  ofstream file("max-v-schm4.txt");
+  file.precision(10);
+  for (int i=0;i<=N;i++)
+  {
+  	file << xx[i] << " " << yyv[i] << endl;
+  }
+  }
+ 
+  { // file for gnuplot
+  ofstream file("max-u-schm4.txt");
+  file.precision(10);
+  for (int i=0;i<=N;i++)
+  {
+  	file << xx[i] << " " << yyu[i] << endl;
+  }
+  } 
+  
+
+

@@ -1,0 +1,72 @@
+\documentclass[a4wide]{article}
+\usepackage{amsmath}
+\usepackage[margin={3cm,2cm}]{geometry}
+
+
+% Some definitons, in order to make more easy PDE expressions
+\newcommand{\um}{u^m}
+\newcommand{\umm}{u^{m+1}}
+\newcommand{\vm}{v^m}
+\newcommand{\vmm}{v^{m+1}}
+\newcommand{\grad}{\nabla}
+\renewcommand{\div}{\nabla\cdot}
+\newcommand{\nn}{\mathbf{n}}
+
+\title{Descrizione del primo schema de Keller-Segel}
+
+\begin{document}
+\maketitle
+
+\section{Descrizione}
+
+\begin{itemize}
+\item Schema contenuto nell'articolo di Giuseppe.
+\item Time
+  semi-discretization: we fix time steps $t_m=k\cdot m$
+  ($m=0,1,2,...$) and given inital data $u^0,v^0 \in
+  V=H^1(\Omega)$.
+  For each find $m\ge 0$, we search $\umm$ and $\vmm$ such that
+  \begin{align}
+    \label{eq:ks.1}
+    (1/k) \umm - \Delta \umm + k_1 \div(\um \grad \vmm)&= (1/k) \um ,
+    \\
+    \label{eq:ks.2}
+    (1/k) \vmm - \Delta \vmm + k_2 \vmm - k_3 \umm &= (1/k) \vm .
+  \end{align}
+  We assume Neumann boundary conditions for each unknown:
+  $\grad \umm \cdot \nn=0$, $\grad \vmm \cdot \nn=0$, $m\ge 0$.
+\end{itemize}
+
+\section{Validation}
+Here we propose some ideas to validate the software
+which we are developing (using \texttt{FreeFEM++}).
+
+\subsection*{Test 1. Reproduction of results contained in Giuseppe's paper}
+
+Idea: if we use the data contained in this paper (inital data $u^0$
+and $v^0$, time step, $k_i$ parameters...), we must obtain the same
+results. For instance, blow-up in the time step which is reflected in
+graphics contained in that paper (\textit{write here more details!}).
+
+\subsection*{Test 2. Comparison with exact solution}
+
+Idea:
+\begin{itemize}
+\item To compute a exact solution, $(u,v)$, to (a \textit{modified version} of)
+  Keller-Segel equations
+\item Use (a \textit{modified version} of)
+  scheme~\eqref{eq:ks.1}--\eqref{eq:ks.2} and finite elements to
+  aproximate the solution, $(\um_h, \vm_h)$.
+\item Compute errors $\|u-\um_h\|_{L^2(\Omega)}$,
+  $\|v-\vm_h\|_{L^2(\Omega)}$. When $k\to 0$ and $h\to 0$, errors must
+  vanish.
+\end{itemize}
+
+\subsection*{Test 3. Discrete energy law}
+
+Idea: analyze the discrete energy law of
+scheme~\eqref{eq:ks.1}--\eqref{eq:ks.2}. Use \textit{FreeFEM++} to
+compute this energy law. Plot the results and test if they are
+agree with the previous analysis.
+
+\end{document}
