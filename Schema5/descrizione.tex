@@ -1,7 +1,7 @@
 \documentclass[a4wide]{article}
 \usepackage{amsmath}
 \usepackage[margin={3cm,2cm}]{geometry}
-
+\usepackage{xcolor}
 
 % Some definitons, in order to make more easy PDE expressions
 \newcommand{\um}{u^m}
@@ -11,6 +11,9 @@
 \newcommand{\grad}{\nabla}
 \renewcommand{\div}{\nabla\cdot}
 \newcommand{\nn}{\mathbf{n}}
+
+% Highlight Math
+\newcommand{\hm}[1]{\colorbox{yellow}{\ensuremath{#1}}}
 
 \title{Descrizione del primo schema de Keller-Segel}
 
@@ -28,13 +31,14 @@
   For each find $m\ge 0$, we search $\umm$ and $\vmm$ such that
   \begin{align}
     \label{eq:ks.1}
-    (1/k) \umm - \Delta \umm + k_1 \div(\umm \grad \vm)&= (1/k) \um ,
+    (1/k) \umm - \Delta \umm \hm{+ k_1 \div(\umm \grad \vm)}&= (1/k) \um ,
     \\
     \label{eq:ks.2}
     (1/k) \vmm - \Delta \vmm + k_2 \vmm - k_3 \umm &= (1/k) \vm .
   \end{align}
-  We assume Neumann boundary conditions for each unknown:
+  As in other schema, we assume Neumann boundary conditions for each unknown:
   $\grad \umm \cdot \nn=0$, $\grad \vmm \cdot \nn=0$, $m\ge 0$.
+  Color \hm{\qquad\rule{0pt}{1ex}} highlights differences with previous Schema.
 \end{itemize}
 
 \section{Validation}

@@ -1,6 +1,7 @@
 \documentclass[a4wide]{article}
 \usepackage{amsmath}
 \usepackage[margin={3cm,2cm}]{geometry}
+\usepackage{xcolor}
 
 
 % Some definitons, in order to make more easy PDE expressions
@@ -12,6 +13,9 @@
 \renewcommand{\div}{\nabla\cdot}
 \newcommand{\nn}{\mathbf{n}}
 
+% Highlight Math
+\newcommand{\hm}[1]{\colorbox{yellow}{\ensuremath{#1}}}
+
 \title{Descrizione del primo schema de Keller-Segel}
 
 \begin{document}
@@ -20,7 +24,6 @@
 \section{Descrizione}
 
 \begin{itemize}
-\item Schema contenuto nell'articolo di Giuseppe.
 \item Time
   semi-discretization: we fix time steps $t_m=k\cdot m$
   ($m=0,1,2,...$) and given inital data $u^0,v^0 \in
@@ -31,10 +34,11 @@
     (1/k) \umm - \Delta \umm &= (1/k) \um - k_1 \div(\um \grad \vm),
     \\
     \label{eq:ks.2}
-    (1/k) \vmm - \Delta \vmm + k_2 \vmm &= (1/k) \vm + k_3 \um.
+    (1/k) \vmm - \Delta \vmm + \hm{k_2 \vmm} &= (1/k) \vm + k_3 \um.
   \end{align}
-  We assume Neumann boundary conditions for each unknown:
+  As in other schema, we assume Neumann boundary conditions for each unknown:
   $\grad \umm \cdot \nn=0$, $\grad \vmm \cdot \nn=0$, $m\ge 0$.
+  Color \hm{\qquad\rule{0pt}{1ex}} highlights differences with previous Schema.
 \end{itemize}
 
 \section{Validation}
