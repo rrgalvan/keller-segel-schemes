@@ -1,0 +1,152 @@
+verbosity=0;
+
+//,---------------------------------------------------------------------
+//| Mesh and finite elements
+//`---------------------------------------------------------------------
+int nx = 70;
+mesh Th = square(nx, nx, [4*x-2, 4*y-2] ); // square [-1,1]^2
+
+fespace Vh(Th,P1);
+fespace VhDG(Th,P1dc);
+VhDG u, u0, ub; // Solution at t_{n+1}, t_n, test function.
+Vh v, v0, bv; // Solution at t_{n+1}, t_n, test function.
+
+fespace Bh(Th,P1);
+Bh bx, by; // Advective velocity
+Bh btest;
+
+// SIP DG parameter
+real PenaltyParameter=4;
+
+//,---------------------------------------------------------------------
+//| Time parameters
+//`---------------------------------------------------------------------
+real t = 0;
+int niter = 100;
+real dt = 1.e-4;
+
+//,---------------------------------------------------------------------
+//| Keller-Segel data
+//`---------------------------------------------------------------------
+
+// Datos del paper de BLOW-UP de Giuseppe Viglialoro
+real cU0=0.2;
+real cU1=1;
+real cV0=1;
+real cV1=0.1;
+real cV2=1;
+
+func initialU = 1.15*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+// func initialU = 0.15*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+func initialU2 = 24*(((x^2-4)^2+(y^2-4)^2 + 1)-0.05*((x^2-4)^4+(y^2-4)^4));
+func initialV = 0.55*exp(-x^2-y^2)*(4-x^2)^2*(4-y^2)^2;
+
+u0 = initialU;
+v0 = initialV;
+
+real integralU0=int2d(Th)(u0);
+cout <<"La integral del dato inicial es "<< integralU0 <<
+  " y 4pi es  " << 4*pi << endl;
+
+
+//,---------------------------------------------------------------------
+//| Variational problems
+//`---------------------------------------------------------------------
+macro grad(u) [ dx(u), dy(u) ] // End of Macro
+  ; // for emacs :)
+macro div(u,v) ( dx(u) + dy(v) ) // End of Macro
+  ; // for emacs :)
+macro dn(u) ( N.x*dx(u) + N.y*dy(u) ) //  Normal derivative
+  ; // for emacs :)
+macro dotN(v) ( N.x*v[0] + N.y*v[1]) // (v1,v2) * (Normal Vector)
+  ; // for emacs
+// def: jump = external - internal value; on border exter value =0
+//      average = (external + internal value)/2, on border just internal value
+// RK: In FreeFem++, nTonEdge = 1 an border edge and = 2 on internal edges
+NewMacro aSIP(coefficient, u, ub)
+  (
+   int2d(Th)( coefficient * grad(u)'*grad(ub) )  // Diffusion
+   + intalledges(Th)  // Consitency and coervicity terms. + sign because "jump=-jump"
+   (
+    coefficient * (
+		   jump(ub)*average(dn(u))  +
+		   jump(u)*average(dn(ub))  +
+		   PenaltyParameter/lenEdge * jump(u)*jump(ub) * (nTonEdge-1)
+		   ) / nTonEdge
+    )
+   ) EndMacro;
+NewMacro aUPW(coefficient, u, b, ub)
+  (
+   int2d(Th)( -coefficient * u * b'*grad(ub) )
+   + intalledges(Th)  // Consitency and coervicity terms. Note that "jump=-jump"
+   (
+    coefficient * (
+		   dotN(b)*(mean(u))*(-jump(ub)) * (nTonEdge-1)/nTonEdge +
+		   0.5*abs(dotN(b)) * jump(u)*jump(ub) * (nTonEdge-1)/nTonEdge
+		   )
+    )
+   ) EndMacro;
+
+
+problem KellerSegelU(u,ub) =
+int2d(Th) (
+	   u*ub/dt
+	   + cU0 * grad(u)'*grad(ub) // Difussion
+	   + cU1 * u*grad(v)'*grad(ub) // Convection
+	   )
+
+- int2d(Th)(u0*ub/dt
+	);
+
+problem KellerSegelDGU(u,ub)=
+  int2d(Th) ( u*ub/dt)
+  + aSIP( cU0, u, ub )
+  + aUPW( cU1, u, [bx, by], ub )
+- int2d(Th)(
+	    u0*ub/dt
+	    - div(bx,by)*u0*ub
+	);
+
+problem KellerSegelV(v,bv) =
+  int2d(Th)(
+	    v*bv/dt
+	    + cV0*grad(v)'*grad(bv)
+	    + cV1*v*bv
+	    )
+  - int2d(Th)(
+	      v0*bv/dt
+	      +cV2*u0*bv // Explicit u!
+	      );
+
+problem ComputeBx(bx, btest) =
+  int2d(Th)(bx*btest) - int2d(Th)(dx(v)*btest);
+
+problem ComputeBy(by, btest) =
+  int2d(Th) (by*btest) - int2d(Th)(dy(v)*btest);
+
+//,---------------------------------------------------------------------
+//| Time loop
+//`---------------------------------------------------------------------
+
+for (int k=1; k<=niter; k++){
+  t=t+dt;
+
+
+  KellerSegelV; //Solve second equation
+
+  // bx = dx(v); by = dy(v); // Define (continuous) advective velocity as grad(v)
+  ComputeBx;
+  ComputeBy;
+
+  KellerSegelDGU; // Solve first equation
+
+  cout << "iter = " << k << "\t (t = " << t << ")" << endl;
+  cout << "  max(u) = " << u[].max << "\t max(v) = " << v[].max << endl;
+  cout << "  min(u) = " << u[].min << "\t min(v) = " << v[].min << endl;
+  cout << "  int_Th(u) = " << int2d(Th)(u) << "\t  int_Th(v) = " << int2d(Th)(v) << endl;
+  u0 = u;  // Prepare next iteration
+  v0 = v;  // Prepare next iteration
+
+  plot(u, value=1, fill=1, dim=3);
+
+ }
