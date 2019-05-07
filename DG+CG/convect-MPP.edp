@@ -1,0 +1,66 @@
+
+// Mesh and finite elments
+int Nx = 10;
+real[int] p0 = [-1,-1], p1=[1,1]; // Points defining square domain
+mesh Th = square(Nx, Nx, [p0[0]+x*(p1[0]-p0[0]), p0[1]+y*(p1[1]-p0[1])]);
+fespace Wh(Th, P1dc);
+fespace VhDG(Th, P1dc);
+VhDG u, u0, bu;
+
+//Vh w1, w2; // Transport vector [w1, w2]
+Wh w1, w2;
+w1=0.1; w2=0.1;
+plot([w1,w2], wait=1);
+
+// Time discretizaton
+int Nt = 40;
+real T=1;
+real dt = T/Nt;
+
+// Initial condition
+real R=1.e+1;
+func uInitial = exp( -R*((x-p0[0])^2 + (y-p0[1])^2) );
+
+// PDE problem
+macro grad(u) [dx(u), dy(u)] // EOM
+  ; // For emacs
+macro normalV() [N.x, N.y] // EOM
+  ; // For emacs
+macro GodunovUpwindFlux(u, w) ( w'*normalV * mean(u) -
+			   0.5*abs(w'*normalV)*(-jump(u))
+			   ) // EOM
+  ; // For emacs
+
+problem Transport(u,bu)=
+  int2d(Th)( (1/dt)*u*bu )
+  - int2d(Th)( u * [w1,w2]'*grad(bu) )
+  + intalledges(Th)(
+		    GodunovUpwindFlux(u, [w1,w2])*(-jump(bu)) * (nTonEdge-1)/nTonEdge
+		    )
+  // - int1d(Th,1,2,2,4)(([w1,w2]'*normalV<0)*abs([w1,w2]'*normalV)*u*bu)
+  - int2d(Th)( (1/dt)*u0*bu );
+
+// macro n() (N.x*w1+N.y*w2) // EOM
+// problem Adual(u,du) =
+//  int2d(Th)(
+// 	   u/dt*bu
+// 	    +
+// 	    (w1*dx(u)+w2*dy(u))*bu
+// 	   )
+//   + intalledges(Th)( (1-nTonEdge)*bu*(0.5*abs(n)-n/2)*jump(u))
+//   - int2d(Th)(u0*bu/dt);
+
+
+// Time loop
+u0 = uInitial;
+plot(u0, wait=1);
+
+for (int timeIter=0; timeIter<Nt; timeIter)
+  {
+    cout << "Time iteration: " << timeIter << endl;
+
+    Transport;
+    // Adual;
+    u0=u;
+    plot(u, wait=1, fill=1, value=1);
+  }
