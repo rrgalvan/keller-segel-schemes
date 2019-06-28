@@ -7,97 +7,169 @@ verbosity = getARGV("-verb", 0);
 int textVerbosity = 1;
 
 // Mesh and finite element spaces
-int nx = getARGV("-nx",40); // Number of mesh subdivisions
+int nx = getARGV("-nx",100); // Number of mesh subdivisions
 mesh Th = square(nx, nx, [pi*x, pi*y]);
 
 plot(Th, wait=1);
 
-fespace Vh(Th,P1);
+fespace Vh(Th,P2);
 Vh u, u0, bu; // Solution at t_{n+1}, t_n, test function.
-Vh v, v0, bv; // Solution at t_{n+1}, t_n, test function.
+Vh v, v0, bv, vMean; // Solution at t_{n+1}, t_n, test function.
+Vh fh1,fh0;// force terms at time levels t^{n+1} and t^n respectively
 
 macro grad(u) [ dx(u), dy(u) ] // End of Macro
+
 // Time parameters
 real t = 0;
-int nt = getARGV("-nt",40); // Number of time iterations
-real dt = getARGV("-dt", 1.e-1); // Time step
+int nt = getARGV("-nt",4); // Number of time iterations
+real dt = getARGV("-dt", 4.e-2); // Time step
 
-// Maximum plot vectors
-real[int] xx(nt+1), yyu(nt+1),yyv(nt+1);
-xx[0]=0;
-// Keller-Segel data
+// Error order parameters
+int nOrderSteps=2;
+real[int] uL2Error(nOrderSteps);
 
-real k1=0.2;
-real k2=1;
-real k3=0.1;
-real k4=1;
+real k1 = 0;
+real k2 = 1;
+real k3 = 1;
+real k4 = 1;
 
-real integral;
+func real uExact(real t) {
+  return  2 + exp(-2*t)*cos(x)*cos(y);
+}
+func real vExact(real t) {
+  return uExact(t);
+}
+func real f(real t) {
+  return -k1*( 4*cos(x)*cos(y) * ( exp(2*t) + cos(x)*cos(y) )
+	    - square(cos(x)) - square(cos(y))
+	    ) * exp(-4*t);
+}
 
-func uExact = 2 + exp(-2*t)*cos(x)*cos(y);
-func vExact = uExact;
-func f = -( 4*exp(2*t) * cos(x+y)
-	    + cos(2*x)/2 + cos(2*y)/2
-	    + cos(2*x + 2*y) ) * exp(-4*u);
+// Variational problem (Euler time scheme)
 
-u0 = uExact; // Proyection of uExact at t=0
-v0 = vExact; // Proyection of vExact at t=0
+problem uKellerSegelEuler(u,bu)=
+  int2d(Th) (
+	     u*bu/dt
+	     + grad(u)'*grad(bu) + k1*u*grad(v)'*grad(bu) )
+  - int2d(Th)(
+	      u0*bu/dt + f(t)*bu
+	      );
 
-yyu[0]=abs(u0[].max);
-yyv[0]=abs(v0[].max);
+problem vKellerSegelEuler(v,bv) =
+  int2d(Th)(
+	    v*bv/dt
+	    + k2*grad(v)'*grad(bv) + k3*v*bv
+	    )
+  - int2d(Th)(
+	      v0*bv/dt + k4*u0*bv
+	      );
 
-integral=int2d(Th)(u0);
+// Variational problem (theta scheme)
 
-cout <<"La integral del dato inicial es "<<integral<< "y 4pi es  " << 4*pi << endl;
+real theta=0.5;
 
+problem ecCalor(u,bu)=
+  int2d(Th) (
+	     u*bu/dt
+	     + theta*( grad(u)'*grad(bu) )
+	     )
+  + int2d(Th)(
+	      - u0*bu/dt
+	      + (1-theta)*( grad(u0)'*grad(bu) )
+	      );
 
-// Variational problem
+problem uKellerSegelCN(u,bu)=
+  int2d(Th) (
+	     u*bu/dt
+	     + theta*( grad(u)'*grad(bu) + k1*u*grad(vMean)'*grad(bu) )
+	     )
+  + int2d(Th)(
+	      - u0*bu/dt - f(t)*bu
+	      + (1-theta)*( grad(u0)'*grad(bu) + k1*u0*grad(vMean)'*grad(bu) )
+	      );
 
-problem KellerSegelU(u,bu)=
-int2d(Th) (
-	u*bu/dt+grad(u)'*grad(bu))
-- int2d(Th)(
-	u0*bu/dt
-	+ k1*u0*grad(v0)'*grad(bu)
-	);
-
-problem KellerSegelV(v,bv) =
-	   int2d(Th)(
-		  v*bv/dt
-		  + k2*grad(v)'*grad(bv)
-		   )
-	  - int2d(Th)(
-		   v0*bv/dt
-		   + k4*u0*bv
-		   - k3*v0*bv
-		    );
+problem vKellerSegelCN(v,bv) =
+  int2d(Th)(
+	    v*bv/dt
+	    + theta*( k2*grad(v)'*grad(bv) + k3*v*bv )
+	    )
+  + int2d(Th)(
+	      - v0*bv/dt - k4*u0*bv
+	      + (1-theta)*( k2*grad(v0)'*grad(bv) + k3*v0*bv )
+	      );
 
 // Time loop
 
 
-// savevtk ("VTK-K-S1/K-S0.vtk",Th,u0,v0,dataname ="u v");
+NewMacro solveKS(iOrder, dt, nt)
+  {
+   cout << "---------------------------------------------------------" << endl;
+   cout << "Solving iOrder=" << iOrder << ", dt=" << dt << ", nt=" << nt << endl;
+   cout << "---------------------------------------------------------" << endl;
 
-for (int k=1; k<=nt; k++){
-  t=t+dt;
-  if(textVerbosity>0) cout << "Solving, iter: " << k << " (t=" << t << ")" << endl;
+   // Calculo de errores ...............
+   real uErrorL2L2square = 0; // ( || u - uExact ||_L2(L2) )^2
 
-  KellerSegelV;
-  KellerSegelU;
+   real uErrorL2square = int2d(Th)( square(u0-uExact(0)) );
+   cout << "  error_L2 ^2 : " << uErrorL2square << endl;
 
-  u0 = u;  // For next iteration
-  v0 = v;  // For next iteration
+   for (int k=1; k<=nt; k++){
 
-  plot(u, value=1, fill=1, dim=3);
+     if(textVerbosity>0) cout << "Solving, iter: " << k << " (t=" << t << ")" << endl;
+     fh0 = f(t);
+     t=t+dt;
+     fh1 = f(t);
 
-  cout << "  max(u): " << u[].max << ", ";
-  cout << "  min(u): " << u[].max << endl;
-  xx[k]=dt*k;
-  yyu[k]=u0[].max;
+     ecCalor;
+     // vKellerSegelCN;
+     // vMean = (v+v0)/2;
+     // uKellerSegelCN;
 
-  cout << "  max(v): " << v[].max << endl;
-  yyv[k]=v0[].max;
+     u0 = u;  // For next iteration
+     v0 = v;  // For next iteration
 
-  cout.flush;
-// savevtk ("VTK-K-S1/K-S"+k+".vtk",Th,u,v,dataname ="u v");
+     // Calculo de errores ...............
+     real uErrorL2square = int2d(Th)( square(u-uExact(t)) );
+     cout << "  error_L2 ^2 : " << uErrorL2square << endl;
+     uErrorL2L2square += uErrorL2square;
 
-}
+     // Cálculo de max/min ...............
+     cout << "  max(u): " << u[].max << ", ";
+     cout << "  min(u): " << u[].max << endl;
+
+     cout << "  max(v): " << v[].max << ", ";
+     cout << "  min(v): " << v[].max << endl;
+
+     bool printUint = true; if (printUint) {
+       real uInt = int2d(Th)(u);
+       cout << "  int(u): " << uInt << endl;
+     }
+
+     // real fInt = int2d(Th)(f);
+     // cout << "  int(f): " << fInt << endl;
+
+     cout.flush;
+     // savevtk ("VTK-K-S1/K-S"+k+".vtk",Th,u,v,dataname ="u v");
+
+     plot(u, value=1, fill=1, dim=3);
+
+   }
+   uL2Error[iOrder] = sqrt(dt*uErrorL2L2square);
+   cout << "error_L2_L2 : " << uL2Error[iOrder] << endl;
+   if(iOrder>0) {
+     cout << "Order: " << log(uL2Error[iOrder-1]/uL2Error[iOrder])/log(2.0) << endl;
+   }
+   }
+  EndMacro;
+
+// Main loop
+
+for(int iOrder=0; iOrder<nOrderSteps; iOrder++) {
+  t = 0;
+  u0 = uExact(0); // Proyection of uExact at t=0
+  v0 = vExact(0); // Proyection of vExact at t=0
+
+  solveKS(iOrder, dt, nt);
+  dt = dt/2;
+  nt = 2*nt;
+ }
