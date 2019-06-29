@@ -28,10 +28,16 @@ real dt = getARGV("-dt", 4.e-2); // Time step
 int nOrderSteps=2;
 real[int] uL2Error(nOrderSteps);
 
-real k1 = 0;
-real k2 = 1;
-real k3 = 1;
-real k4 = 1;
+// Keller-Segel data
+real k0 = getARGV("-k0", 1.0); // u diffusion coefficient
+real k1 = getARGV("-k1", 1.0); // u chemotaxis coeff.
+real k2 = getARGV("-k2", 1.0); // v diffusion coeff
+real k3 = getARGV("-k3", 1.0); // v +v reaction coeff
+real k4 = getARGV("-k4", 1.0); // v -u reaction coeff
+
+if(verbosity) cout << "Keller-Segel coefficients: k0=" << k0 << ", k1=" << k1
+		   << ", k2=" << k2 << ", k3=" << k3 << ", k4=" << k4 << endl;
+
 
 func real uExact(real t) {
   return  2 + exp(-2*t)*cos(x)*cos(y);
@@ -81,11 +87,12 @@ problem ecCalor(u,bu)=
 problem uKellerSegelCN(u,bu)=
   int2d(Th) (
 	     u*bu/dt
-	     + theta*( grad(u)'*grad(bu) + k1*u*grad(vMean)'*grad(bu) )
+	     + theta*( grad(u)'*grad(bu) + k1*u*grad(v)'*grad(bu) )
 	     )
   + int2d(Th)(
-	      - u0*bu/dt - f(t)*bu
-	      + (1-theta)*( grad(u0)'*grad(bu) + k1*u0*grad(vMean)'*grad(bu) )
+	      - u0*bu/dt
+	      - ( theta*fh1 + (1-theta)*fh0 ) *bu
+	      + (1-theta)*( grad(u0)'*grad(bu) + k1*u0*grad(v0)'*grad(bu) )
 	      );
 
 problem vKellerSegelCN(v,bv) =
@@ -120,10 +127,10 @@ NewMacro solveKS(iOrder, dt, nt)
      t=t+dt;
      fh1 = f(t);
 
-     ecCalor;
-     // vKellerSegelCN;
+     // ecCalor;
+     vKellerSegelCN;
      // vMean = (v+v0)/2;
-     // uKellerSegelCN;
+     uKellerSegelCN;
 
      u0 = u;  // For next iteration
      v0 = v;  // For next iteration
